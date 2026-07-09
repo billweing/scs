@@ -1,5 +1,7 @@
 # SCS — A Spherical-Coordinate Chain Representation of Text
 
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.21281938.svg)](https://doi.org/10.5281/zenodo.21281938)
+
 *A self-describing, reversible encoding of symbol sequences in 3D.*
 
 **Interactive demonstrator: https://scs.bago.one**
@@ -67,13 +69,15 @@ record of the work.
 
 ## Citation
 
-Until an arXiv ID / DOI is available, please cite as:
-
 ```
 Guangjie Jin. A Spherical-Coordinate Chain Representation of Text:
 A Self-Describing, Reversible Encoding of Symbol Sequences in 3D. 2026.
-https://github.com/billweing/scs
+Zenodo. https://doi.org/10.5281/zenodo.21281938
 ```
+
+(The DOI above always resolves to the latest version; this release is
+archived as [10.5281/zenodo.21281939](https://doi.org/10.5281/zenodo.21281939).
+An arXiv submission is in preparation and will be linked here.)
 
 ## License
 
