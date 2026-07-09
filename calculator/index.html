@@ -1,0 +1,811 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Spherical Chain Calculator · SCS — an interactive tool that encodes text into a 3D chain of spherical-coordinate vectors: encode, decode-and-verify, and the word-shape prefix tree.">
+<title>Spherical Chain Calculator · SCS</title>
+<style>
+  :root{
+    --bg:#F5F7FA; --panel:#FFFFFF; --ink:#1B2430; --ink2:#5A6A7E; --line:#DDE4EC;
+    --r-hue:#7C4DBE; --theta-hue:#B97A0F; --phi-hue:#0E7FC0; --res-hue:#C94F3D;
+    --ax-x:#D25454; --ax-y:#3FA34D; --ax-z:#3E7BD6;
+    --canvas-bg:#EDF1F6; --grid:rgba(27,36,48,.10); --chain:#1B2430; --cmp:#C2569E;
+    --chip:#EEF2F7;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0F141B; --panel:#161D26; --ink:#E4EAF2; --ink2:#8FA0B5; --line:#26303D;
+      --r-hue:#A98BE8; --theta-hue:#E0A94C; --phi-hue:#4FB8F0; --res-hue:#F0876F;
+      --ax-x:#E87070; --ax-y:#5BC46A; --ax-z:#6C9AE8;
+      --canvas-bg:#0B1017; --grid:rgba(228,234,242,.10); --chain:#E4EAF2; --cmp:#E68AC8;
+      --chip:#1D2631;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0F141B; --panel:#161D26; --ink:#E4EAF2; --ink2:#8FA0B5; --line:#26303D;
+    --r-hue:#A98BE8; --theta-hue:#E0A94C; --phi-hue:#4FB8F0; --res-hue:#F0876F;
+    --ax-x:#E87070; --ax-y:#5BC46A; --ax-z:#6C9AE8;
+    --canvas-bg:#0B1017; --grid:rgba(228,234,242,.10); --chain:#E4EAF2; --cmp:#E68AC8;
+    --chip:#1D2631;
+  }
+  :root[data-theme="light"]{
+    --bg:#F5F7FA; --panel:#FFFFFF; --ink:#1B2430; --ink2:#5A6A7E; --line:#DDE4EC;
+    --r-hue:#7C4DBE; --theta-hue:#B97A0F; --phi-hue:#0E7FC0; --res-hue:#C94F3D;
+    --ax-x:#D25454; --ax-y:#3FA34D; --ax-z:#3E7BD6;
+    --canvas-bg:#EDF1F6; --grid:rgba(27,36,48,.10); --chain:#1B2430; --cmp:#C2569E;
+    --chip:#EEF2F7;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; background:var(--bg); color:var(--ink);
+    font-family:"Avenir Next",Avenir,"Helvetica Neue",Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.55;
+  }
+  .mono{font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-variant-numeric:tabular-nums}
+  header{padding:22px 26px 14px; border-bottom:1px solid var(--line)}
+  header h1{
+    margin:0; font-family:Futura,"Avenir Next",sans-serif; font-weight:600;
+    font-size:21px; letter-spacing:.06em;
+  }
+  header h1 .en{color:var(--ink2); font-weight:400; font-size:14px; letter-spacing:.12em; margin-left:10px}
+  header p{margin:6px 0 0; color:var(--ink2); font-size:13.5px; max-width:78ch}
+  .legend{display:flex; gap:14px; margin-top:10px; flex-wrap:wrap; font-size:12.5px}
+  .legend span{display:inline-flex; align-items:center; gap:6px; color:var(--ink2)}
+  .dot{width:9px; height:9px; border-radius:50%; display:inline-block}
+  main{display:flex; flex-direction:column; gap:18px; padding:18px 26px 30px}
+  .panel{background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 18px}
+  .panel h2{
+    margin:0 0 10px; font-size:11.5px; font-weight:600; letter-spacing:.14em;
+    text-transform:uppercase; color:var(--ink2);
+  }
+  .stack{display:flex; flex-direction:column; gap:14px}
+  input[type=text]{
+    width:100%; padding:10px 12px; font-size:16px; border-radius:8px;
+    border:1px solid var(--line); background:var(--bg); color:var(--ink);
+  }
+  input[type=text]:focus{outline:2px solid var(--phi-hue); outline-offset:1px; border-color:transparent}
+  .ctrl{display:flex; flex-direction:column; gap:6px; margin-top:12px}
+  .controlsgrid{display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:6px 18px; align-items:start}
+  .controlsgrid .ctrl{margin-top:10px}
+  .ctrl label.head{font-size:12.5px; color:var(--ink2); letter-spacing:.03em}
+  .seg{display:flex; gap:6px; flex-wrap:wrap}
+  .seg button{
+    flex:1; min-width:90px; padding:7px 8px; font-size:13px; border-radius:7px; cursor:pointer;
+    border:1px solid var(--line); background:var(--bg); color:var(--ink2); font-family:inherit;
+  }
+  .seg button[aria-pressed="true"]{background:var(--chip); color:var(--ink); border-color:var(--ink2); font-weight:600}
+  .seg button:focus-visible{outline:2px solid var(--phi-hue); outline-offset:1px}
+  .sliderrow{display:flex; align-items:center; gap:10px}
+  .sliderrow input[type=range]{flex:1; accent-color:var(--theta-hue)}
+  .sliderrow output{min-width:70px; text-align:right; font-size:13px}
+  .checks{display:flex; gap:16px; flex-wrap:wrap; font-size:13px; color:var(--ink2)}
+  .checks label{display:inline-flex; gap:6px; align-items:center; cursor:pointer}
+  .stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-top:12px}
+  .stat{background:var(--chip); border-radius:8px; padding:10px 12px}
+  .stat .k{font-size:11.5px; color:var(--ink2); letter-spacing:.06em}
+  .stat .v{font-size:17px; font-weight:600; margin-top:2px}
+  .warn{color:var(--res-hue); font-size:13px; margin-top:8px; display:none}
+  .decsum{font-size:13.5px; padding:10px 12px; border-radius:8px; margin-bottom:12px; background:var(--chip); color:var(--ink2)}
+  .decsum.good{background:color-mix(in srgb, var(--ax-y) 16%, var(--panel)); color:var(--ink); border:1px solid color-mix(in srgb, var(--ax-y) 45%, transparent)}
+  .decsum.warnbanner{background:color-mix(in srgb, var(--res-hue) 14%, var(--panel)); color:var(--ink); border:1px solid color-mix(in srgb, var(--res-hue) 45%, transparent)}
+  .ok{color:var(--ax-y); font-weight:700}
+  .bad{color:var(--res-hue); font-weight:700}
+  .tablewrap{overflow-x:auto; max-height:340px; overflow-y:auto; border:1px solid var(--line); border-radius:8px}
+  table{border-collapse:collapse; width:100%; font-size:13px}
+  th,td{padding:6px 10px; text-align:right; border-bottom:1px solid var(--line); white-space:nowrap}
+  th{position:sticky; top:0; background:var(--panel); font-weight:600; font-size:11.5px; letter-spacing:.05em; color:var(--ink2); z-index:1}
+  td:first-child,th:first-child{text-align:center}
+  td.char{text-align:center; font-weight:600}
+  th.hr{color:var(--r-hue)} th.hth{color:var(--theta-hue)} th.hph{color:var(--phi-hue)}
+  #view{width:100%; height:520px; display:block; border-radius:9px; background:var(--canvas-bg); cursor:grab; touch-action:none}
+  #view:active{cursor:grabbing}
+  #gview{width:100%; height:400px; display:block; border-radius:9px; background:var(--canvas-bg); cursor:grab; touch-action:none}
+  #gview:active{cursor:grabbing}
+  .glegend{display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:10px; font-size:12.5px}
+  .gchip{display:inline-flex; align-items:center; gap:5px; color:var(--ink2)}
+  .gchip i{width:10px; height:10px; border-radius:2px; display:inline-block; flex:none}
+  #ifview{width:100%; height:360px; display:block; border-radius:9px; background:var(--canvas-bg)}
+  .ifin{display:flex; gap:16px; flex-wrap:wrap; align-items:center; margin-bottom:12px}
+  .ifin label{font-size:13px; color:var(--ink2); display:flex; gap:8px; align-items:center}
+  .ifin input{width:56px; text-align:center; padding:8px; font-size:18px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink)}
+  .iflab{display:flex; gap:18px; flex-wrap:wrap; align-items:center; margin-top:12px; font-size:13.5px}
+  .ifbar{height:12px; border-radius:6px; background:var(--chip); overflow:hidden; margin-top:10px}
+  .ifbar > i{display:block; height:100%; background:var(--cmp); transition:width .08s linear}
+  .hint{font-size:12px; color:var(--ink2); margin-top:8px}
+  .dialgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(118px,1fr)); gap:4px; font-size:12.5px}
+  .dialcell{display:flex; justify-content:space-between; align-items:baseline; padding:4px 8px; background:var(--chip); border-radius:6px}
+  .dialcell .c{font-weight:700}
+  .dialcell .a{color:var(--phi-hue); font-size:11.5px}
+  .defs{margin:0 26px 34px; max-width:82ch}
+  .defs h2{font-size:11.5px; letter-spacing:.14em; text-transform:uppercase; color:var(--ink2)}
+  .defs dl{margin:0; display:grid; grid-template-columns:max-content 1fr; gap:6px 16px; font-size:13.5px}
+  .defs dt{font-weight:600; white-space:nowrap}
+  .defs dd{margin:0; color:var(--ink2)}
+  .defs .f{font-family:ui-monospace,"SF Mono",Menlo,monospace; font-size:12.5px}
+  @media (max-width:640px){ .defs dl{grid-template-columns:1fr} .defs dd{margin-bottom:6px} }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Spherical Chain Calculator<span class="en">SCS · a reversible geometric encoding of text</span></h1>
+  <p>Type a phrase: each character is encoded as one information vector (r, α, φ), unfolded in the previous node's <b>frame</b> and joined tip-to-tail into a chain of information vectors. The elevation accumulates per character, so the chain spirals upward.</p>
+  <div class="legend">
+    <span><span class="dot" style="background:var(--r-hue)"></span>r radius</span>
+    <span><span class="dot" style="background:var(--theta-hue)"></span>α elevation (from the xy-plane; ISO zenith = 90°−α)</span>
+    <span><span class="dot" style="background:var(--phi-hue)"></span>φ azimuth (in the xy-plane, CCW from +x)</span>
+    <span><span class="dot" style="background:var(--res-hue)"></span>resultant (fingerprint)</span>
+    <span><span class="dot" style="background:var(--cmp)"></span>comparison chain</span>
+    <span><span class="dot" style="background:var(--ax-x)"></span>x <span class="dot" style="background:var(--ax-y)"></span>y <span class="dot" style="background:var(--ax-z)"></span>z node-frame axes</span>
+  </div>
+</header>
+
+<main>
+  <div class="panel">
+    <h2>Input</h2>
+    <input id="text" type="text" value="cat" spellcheck="false" autocomplete="off" aria-label="Sentence to encode">
+    <input id="text2" type="text" value="" spellcheck="false" autocomplete="off" style="margin-top:8px" aria-label="Comparison sentence" placeholder="Comparison sentence (optional) — overlaid in magenta; a shared prefix coincides, forks where they differ">
+    <div class="warn" id="warn"></div>
+
+    <div class="controlsgrid">
+      <div class="ctrl">
+        <label class="head">Node-frame convention</label>
+        <div class="seg" role="group" id="frameMode">
+          <button data-v="fixed" aria-pressed="true">Translational (axes fixed)</button>
+          <button data-v="rot" aria-pressed="false">Co-moving (rotates with chain)</button>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <label class="head">Elevation α source</label>
+        <div class="seg" role="group" id="thetaMode">
+          <button data-v="index" aria-pressed="true">Per-character</button>
+          <button data-v="wordlocal" aria-pressed="false">Per-word</button>
+          <button data-v="const" aria-pressed="false">Constant</button>
+        </div>
+        <div class="sliderrow">
+          <input id="thetaVal" type="range" min="1" max="45" step="1" value="10" aria-label="Elevation parameter">
+          <output id="thetaOut" class="mono">step 10°</output>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <label class="head">Radius r source</label>
+        <div class="seg" role="group" id="rMode">
+          <button data-v="unit" aria-pressed="true">Fixed r = 1</button>
+          <button data-v="index" aria-pressed="false">Per-char +0.1</button>
+        </div>
+      </div>
+
+      <div class="ctrl">
+        <label class="head">Display</label>
+        <div class="checks">
+          <label><input type="checkbox" id="showTriads" checked> Node-frame axes</label>
+          <label><input type="checkbox" id="showLabels" checked> Character labels</label>
+          <label><input type="checkbox" id="showRes" checked> Resultant</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Chain of information vectors · 3D</h2>
+    <canvas id="view"></canvas>
+    <div class="stats mono">
+      <div class="stat"><div class="k">steps n</div><div class="v" id="sN">–</div></div>
+      <div class="stat"><div class="k">path length Σr</div><div class="v" id="sPath">–</div></div>
+      <div class="stat"><div class="k">|resultant|</div><div class="v" id="sRes" style="color:var(--res-hue)">–</div></div>
+      <div class="stat"><div class="k">resultant (α, φ)</div><div class="v" id="sResAng">–</div></div>
+      <div class="stat"><div class="k">rise per step Δz = r·sinα</div><div class="v" id="sDz" style="color:var(--theta-hue)">–</div></div>
+    </div>
+    <div class="hint">Drag to rotate · scroll to zoom · double-click to reset. Character → φ = slot × 4° (90-slot dial; ` ^ ~ { } removed; the null value is r=0).<br><b>Geometric fingerprint:</b> two sentences start from the same origin — <b>a shared prefix coincides exactly and forks at the first differing character</b> (try cat / cap). In "Per-word" mode a word traces a congruent shape wherever it sits (see the word-shape gallery below).</div>
+  </div>
+
+  <div class="panel">
+    <h2>Word-shape fingerprint gallery · one shape per word from the origin (per-word)</h2>
+    <input id="galleryText" type="text" value="cat car card care can cat dog do dot" spellcheck="false" autocomplete="off" style="margin-bottom:10px" aria-label="Gallery text">
+    <canvas id="gview"></canvas>
+    <div class="glegend mono" id="glegend"></div>
+    <div class="hint">Each distinct word = one curve from the origin. <b>Words sharing a spelling prefix share the initial segment</b> (the more alike the spelling, the closer the start), so the whole vocabulary fans out into a 3D prefix tree; <b>repeated words overlap exactly</b> (marked ×N). Drag to rotate — linked to the main view above. Step size uses the "Elevation α" slider on the left.</div>
+  </div>
+
+  <div class="panel">
+    <h2>Per-character encoding table</h2>
+    <div class="tablewrap">
+      <table class="mono">
+        <thead><tr>
+          <th>Char</th><th>Slot</th>
+          <th class="hr">r</th><th class="hth">α</th><th class="hph">φ</th>
+          <th>Node N (x, y, z)</th>
+        </tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>Decode verification · invert from node geometry alone, compared per character</h2>
+    <div class="decsum mono" id="decsum">–</div>
+    <div class="tablewrap">
+      <table class="mono">
+        <thead><tr>
+          <th>#</th><th>Orig</th>
+          <th class="hr">dec r</th><th class="hth">dec α</th><th class="hph">dec φ</th>
+          <th>dec char</th><th>result</th>
+        </tr></thead>
+        <tbody id="decrows"></tbody>
+      </table>
+    </div>
+    <div class="hint">The decoder reads only node coordinates (x, y, z): rebuild the frame per protocol → recover (r, α, φ) → look up the dial for the character, never consulting the source. A vertical step at α=90° loses φ; past α&gt;90° it aliases with (180°−α, φ+180°) — both show up here as a failed decode.</div>
+  </div>
+
+  <div class="panel">
+    <h2>90-slot dial reference · φ = slot × 4° (5 low-frequency chars ` ^ ~ { } removed)</h2>
+    <div class="dialgrid mono" id="dial"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Amplitude interference · exploratory (conjecture, not in the paper)</h2>
+    <div class="ifin">
+      <label>Amplitude A <input id="ifA" type="text" value="C" maxlength="1" spellcheck="false" autocomplete="off"></label>
+      <label>Amplitude B <input id="ifB" type="text" value="4" maxlength="1" spellcheck="false" autocomplete="off"></label>
+      <span class="hint" style="margin:0">Each character = one unit amplitude (direction = φ); see the amplitude the two combine into.</span>
+    </div>
+    <canvas id="ifview"></canvas>
+    <div class="iflab mono">
+      <span>φ_A = <b id="ifpA">–</b></span>
+      <span>φ_B = <b id="ifpB">–</b></span>
+      <span>angle Δφ = <b id="ifd">–</b></span>
+      <span>|A+B| = <b id="ifmag" style="color:var(--cmp)">–</b></span>
+      <span id="ifstate" style="font-weight:700">–</span>
+    </div>
+    <div class="ifbar"><i id="ifbarfill" style="width:0%"></i></div>
+    <div class="hint">Constructive (aligned → 2) · destructive (opposed → 0). Try <b>4</b> and lowercase <b>c</b> (φ differ by 180°) for full cancellation. <b>This is a classical wave/interference demo, not quantum</b> — see discussion-notes.md.</div>
+  </div>
+</main>
+
+<section class="defs">
+  <h2>Definitions</h2>
+  <dl>
+    <dt>Information vector v<sub>k</sub></dt>
+    <dd>One unit of information, a triple <span class="f">(r, α, φ)</span>: radius r, elevation α (<b>measured from the node frame's xy-plane</b>, i.e. an elevation; ISO zenith angle = 90°−α), and azimuth φ (in the xy-plane, CCW from +x, 0–360°). Interpreted in the <b>previous node's frame</b> F<sub>k−1</sub>.</dd>
+    <dt>Node N<sub>k</sub></dt>
+    <dd>The endpoint of the k-th information vector; N<sub>0</sub> = origin O. The node sequence is the chain's vertices.</dd>
+    <dt>Node frame F<sub>k</sub></dt>
+    <dd>A local frame with origin at N<sub>k</sub>. <b>Translational</b>: axes stay parallel to the global frame; <b>co-moving</b>: the +z axis rotates onto the incoming direction v<sub>k</sub> (θ becomes a bend angle relative to the previous step). F<sub>0</sub> = global frame.</dd>
+    <dt>Vector chain C</dt>
+    <dd>An ordered sequence of information vectors <span class="f">C = (v₁ … v_n)</span>; unfolding rule <span class="f">N_k = N_{k−1} + R_{k−1}·sph(v_k)</span>, where R is the node-frame orientation and sph maps spherical → Cartesian.</dd>
+    <dt>Resultant</dt>
+    <dd>O → N<sub>n</sub>, the whole chain's "fingerprint". The vector sum is lossy: the resultant alone cannot recover the steps; reversibility comes from keeping the whole polyline.</dd>
+    <dt>Encoding map</dt>
+    <dd>The rule symbol → (r, α, φ). Here the character sets φ — <b>90 slots × 4°</b> (printable ASCII with 5 low-frequency chars <span class="f">` ^ ~ { }</span> removed; the rest occupy slots 0–89 in ASCII order); the null value takes no slot and is a <span class="f">r = 0</span> zero-length step; α and r follow the options on the left.</dd>
+    <dt>Spiral property (default)</dt>
+    <dd>Translational frame, constant r, per-character cumulative elevation <span class="f">α_k = k×step</span>: the chain climbs as an ever-steepening spiral. For <span class="f">0° &lt; α_k &lt; 180°</span> each step rises by <span class="f">Δz_k = r·sinα_k &gt; 0</span>, so z strictly increases — <b>node order is read from height, and a step's α directly gives its index (k = α/step)</b>. Cost: the step at α=90° is vertical and its φ is unreadable; past α≥180° the height order breaks ⇒ length bound = 180°/step − 1 (step 10° → 17 chars, skipping char 9; an earlier draft proposed step 0.01° → ~18,000 chars).</dd>
+  </dl>
+</section>
+
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+const D2R=Math.PI/180, R2D=180/Math.PI;
+
+/* 90-slot dial: printable ASCII minus 5 rarest chars; null = r=0, owns no slot */
+const REMOVED=new Set(["`","^","~","{","}"]);
+const CHARSET=[];
+for(let c=0x20;c<=0x7E;c++){ const ch=String.fromCodePoint(c); if(!REMOVED.has(ch)) CHARSET.push(ch); }
+const SLOT=new Map(CHARSET.map((ch,i)=>[ch,i]));
+const STEP_PHI=360/CHARSET.length;   /* = 4° */
+
+/* ---------- state ---------- */
+const state={ frame:"fixed", thetaMode:"index", thetaVal:10, rMode:"unit",
+              yaw:-0.6, pitch:0.35, zoom:1 };
+
+/* segmented controls */
+function seg(id,key,after){
+  const box=$(id);
+  box.addEventListener("click",e=>{
+    const b=e.target.closest("button"); if(!b) return;
+    box.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed", x===b?"true":"false"));
+    state[key]=b.dataset.v; if(after) after(); update();
+  });
+}
+seg("frameMode","frame");
+seg("thetaMode","thetaMode",()=>{
+  const idx=state.thetaMode!=="const";
+  $("thetaVal").min=idx?1:-90; $("thetaVal").max=idx?45:90;
+  $("thetaVal").value=10; state.thetaVal=+$("thetaVal").value; syncThetaOut();
+});
+seg("rMode","rMode");
+function syncThetaOut(){
+  $("thetaOut").textContent=(state.thetaMode!=="const"?"step ":"")+state.thetaVal+"°";
+}
+$("thetaVal").addEventListener("input",()=>{ state.thetaVal=+$("thetaVal").value; syncThetaOut(); update(); });
+["showTriads","showLabels","showRes"].forEach(id=>$(id).addEventListener("change",draw));
+$("text").addEventListener("input",update);
+$("text2").addEventListener("input",update);
+syncThetaOut();
+
+/* ---------- math ---------- */
+const I3=[[1,0,0],[0,1,0],[0,0,1]];
+function matMul(A,B){const C=[[0,0,0],[0,0,0],[0,0,0]];
+  for(let i=0;i<3;i++)for(let j=0;j<3;j++)C[i][j]=A[i][0]*B[0][j]+A[i][1]*B[1][j]+A[i][2]*B[2][j];
+  return C;}
+function matVec(A,v){return [A[0][0]*v[0]+A[0][1]*v[1]+A[0][2]*v[2],
+                             A[1][0]*v[0]+A[1][1]*v[1]+A[1][2]*v[2],
+                             A[2][0]*v[0]+A[2][1]*v[1]+A[2][2]*v[2]];}
+function transpose(A){return [[A[0][0],A[1][0],A[2][0]],[A[0][1],A[1][1],A[2][1]],[A[0][2],A[1][2],A[2][2]]];}
+function sub(a,b){return [a[0]-b[0],a[1]-b[1],a[2]-b[2]];}
+const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));
+/* rotation taking local +z onto unit vector d (Rodrigues) */
+function rotZto(d){
+  const c=d[2], s=Math.hypot(d[0],d[1]);
+  if(s<1e-9) return c>0? I3 : [[1,0,0],[0,-1,0],[0,0,-1]];
+  const kx=-d[1]/s, ky=d[0]/s, t=1-c;
+  return [[c+kx*kx*t, kx*ky*t,   ky*s],
+          [kx*ky*t,   c+ky*ky*t, -kx*s],
+          [-ky*s,     kx*s,      c]];
+}
+/* elevation convention: α measured from the xy-plane */
+function sph(r,alDeg,phDeg){
+  const al=alDeg*D2R, ph=phDeg*D2R, ca=Math.cos(al);
+  return [r*ca*Math.cos(ph), r*ca*Math.sin(ph), r*Math.sin(al)];
+}
+
+/* ---------- encode ---------- */
+let chain=null, chainB=null;
+function buildChain(text){
+  const skipped=[];
+  const steps=[]; let P=[0,0,0], R=I3, pathLen=0; const nodes=[{P:[0,0,0],R:I3}];
+  const vert=[], over=[], down=[], removedHit=[];
+  let k=0, j=0;
+  for(const ch of text){
+    const slot=SLOT.get(ch);
+    if(slot===undefined){
+      (REMOVED.has(ch)?removedHit:skipped).push(ch);
+      continue;
+    }
+    k++;
+    const phi=slot*STEP_PHI;
+    let alpha;
+    if(state.thetaMode==="const"){ alpha=state.thetaVal; }
+    else if(state.thetaMode==="wordlocal"){
+      if(ch===" "){ j=0; alpha=0; } else { j++; alpha=j*state.thetaVal; }  // space resets the within-word counter
+    } else { alpha=k*state.thetaVal; }
+    if(state.thetaMode!=="const"){
+      if(alpha===90) vert.push(k);
+      else if(alpha>=180) down.push(k);
+      else if(alpha>90) over.push(k);
+    }
+    const r=state.rMode==="index" ? 1+0.1*(k-1) : 1;
+    const local=sph(r,alpha,phi);
+    const stepG=matVec(R,local);
+    P=[P[0]+stepG[0],P[1]+stepG[1],P[2]+stepG[2]];
+    pathLen+=r;
+    if(state.frame==="rot"){
+      const d=[stepG[0]/r,stepG[1]/r,stepG[2]/r];
+      R=rotZto(d);
+    }
+    nodes.push({P:P.slice(),R});
+    steps.push({k,ch,slot,r,alpha,phi,P:P.slice()});
+  }
+  const res=P.slice(), rlen=Math.hypot(...res);
+  return {steps,nodes,skipped,removedHit,vert,over,down,pathLen,res,rlen,
+         resAlpha:rlen>1e-9?Math.asin(res[2]/rlen)*R2D:0,
+         resPhi:rlen>1e-9?((Math.atan2(res[1],res[0])*R2D)+360)%360:0};
+}
+function encode(){
+  chain=buildChain($("text").value);
+  const c=$("text2").value;
+  chainB = (c && [...c].some(ch=>SLOT.has(ch))) ? buildChain(c) : null;
+}
+
+/* ---------- decode: recover text from node geometry ONLY ---------- */
+/* input = array of node positions [x,y,z]; protocol (frameMode, STEP_PHI, CHARSET) is known.
+   frames are rebuilt from the geometry itself — the original text is never consulted. */
+function decode(nodePs, frameMode){
+  const out=[]; let Rprev=I3;
+  for(let k=1;k<nodePs.length;k++){
+    const g=sub(nodePs[k],nodePs[k-1]);          // global step vector (pure geometry)
+    const local=matVec(transpose(Rprev),g);      // express in previous node frame
+    const r=Math.hypot(...local);
+    let ch, slot=null, alpha=null, phi=null;
+    if(r<1e-9){ ch="∅"; }                        // zero-length step = null value
+    else{
+      alpha=Math.asin(clamp(local[2]/r,-1,1))*R2D;
+      const hyp=Math.hypot(local[0],local[1]);
+      if(hyp<1e-9){ ch="?"; }                    // vertical step: φ undefined, char lost
+      else{
+        phi=((Math.atan2(local[1],local[0])*R2D)%360+360)%360;
+        slot=((Math.round(phi/STEP_PHI))%CHARSET.length+CHARSET.length)%CHARSET.length;
+        ch=CHARSET[slot];
+      }
+    }
+    out.push({k,r,alpha,phi,slot,ch});
+    if(frameMode==="rot" && r>1e-9){ Rprev=rotZto([g[0]/r,g[1]/r,g[2]/r]); }
+  }
+  return out;
+}
+
+/* ---------- table & stats ---------- */
+const fmt=(x,n=3)=>x.toFixed(n);
+function renderTable(){
+  const tb=$("rows"); tb.innerHTML="";
+  for(const s of chain.steps){
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td class="char">${s.ch===" "?"␣":s.ch.replace("<","&lt;")}</td><td>${s.slot}</td>`+
+      `<td style="color:var(--r-hue)">${fmt(s.r,2)}</td>`+
+      `<td style="color:var(--theta-hue)">${fmt(s.alpha,2)}°</td>`+
+      `<td style="color:var(--phi-hue)">${fmt(s.phi,2)}°</td>`+
+      `<td>(${fmt(s.P[0])}, ${fmt(s.P[1])}, ${fmt(s.P[2])})</td>`;
+    tb.appendChild(tr);
+  }
+  $("sN").textContent=chain.steps.length;
+  $("sPath").textContent=fmt(chain.pathLen,2);
+  $("sRes").textContent=fmt(chain.rlen,3);
+  $("sResAng").textContent=chain.steps.length?`${fmt(chain.resAlpha,1)}°, ${fmt(chain.resPhi,1)}°`:"–";
+  const spiral=state.frame==="fixed"&&state.thetaMode==="const"&&state.rMode==="unit";
+  $("sDz").textContent=spiral?fmt(Math.sin(state.thetaVal*D2R),3):"varies (sin α_k)";
+  const w=$("warn"), notes=[];
+  if(chain.skipped.length) notes.push("Skipped non-ASCII printable chars: "+[...new Set(chain.skipped)].join(" "));
+  if(chain.removedHit.length) notes.push("Skipped low-frequency chars outside the 90-slot set: "+[...new Set(chain.removedHit)].join(" "));
+  if(chain.vert.length) notes.push(`⚠ Step ${chain.vert.join(", ")} at α=90°: vertical step, this character's φ is lost`);
+  if(chain.over.length) notes.push(`⚠ Step ${chain.over.join(", ")} at α>90°: past zenith, horizontal direction flips (aliases with 180°−α)`);
+  if(chain.down.length) notes.push(`⚠ Step ${chain.down.join(", ")} at α≥180°: no longer ascending, height ordering breaks`);
+  if(notes.length){ w.style.display="block"; w.innerHTML=notes.join("<br>"); }
+  else w.style.display="none";
+}
+
+/* ---------- 3D view ---------- */
+const cv=$("view"), ctx=cv.getContext("2d");
+let W=0,H=0,DPR=1;
+function resize(){
+  DPR=window.devicePixelRatio||1;
+  W=cv.clientWidth; H=cv.clientHeight;
+  cv.width=W*DPR; cv.height=H*DPR; ctx.setTransform(DPR,0,0,DPR,0,0);
+  draw();
+}
+new ResizeObserver(resize).observe(cv);
+
+function project(p,scale,w,h){
+  w=w||W; h=h||H;
+  const cy=Math.cos(state.yaw), sy=Math.sin(state.yaw);
+  const x=p[0]*cy-p[1]*sy, y=p[0]*sy+p[1]*cy;
+  const cp=Math.cos(state.pitch), sp=Math.sin(state.pitch);
+  const depth=y*cp-p[2]*sp, up=y*sp+p[2]*cp;
+  return [w/2+x*scale, h*0.52-up*scale, depth];
+}
+function css(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+
+/* integer tick marks + labels along the x/y/z axes (shared by main view & gallery) */
+function drawScaleTicks(g, scale, w, h, gmax){
+  g.font="10px ui-monospace,Menlo,monospace";
+  const o=project([0,0,0],scale,w,h);
+  for(const [c,u] of [["--ax-x",[1,0,0]],["--ax-y",[0,1,0]],["--ax-z",[0,0,1]]]){
+    const col=css(c);
+    const end=project([u[0]*gmax,u[1]*gmax,u[2]*gmax],scale,w,h);
+    const dx=end[0]-o[0], dy=end[1]-o[1], dl=Math.hypot(dx,dy)||1;
+    const nx=-dy/dl, ny=dx/dl;                       // screen-space perpendicular to the axis
+    for(let t=1;t<=gmax;t++){
+      const p=project([u[0]*t,u[1]*t,u[2]*t],scale,w,h);
+      g.strokeStyle=col; g.globalAlpha=.85; g.lineWidth=1.2;
+      g.beginPath(); g.moveTo(p[0]-nx*3.5,p[1]-ny*3.5); g.lineTo(p[0]+nx*3.5,p[1]+ny*3.5); g.stroke();
+      g.fillStyle=css("--ink2"); g.globalAlpha=.9;
+      g.fillText(String(t), p[0]+nx*7-2.5, p[1]+ny*7+3.5);
+    }
+  }
+  g.globalAlpha=1;
+}
+
+function draw(){
+  if(!chain) return;
+  ctx.clearRect(0,0,W,H);
+  let maxR=1.2;
+  for(const n of chain.nodes) maxR=Math.max(maxR,Math.hypot(...n.P));
+  if(chainB) for(const n of chainB.nodes) maxR=Math.max(maxR,Math.hypot(...n.P));
+  const scale=Math.min(W,H)*0.36/maxR*state.zoom;
+  const grid=css("--grid"), chainC=css("--chain");
+
+  /* xy-plane grid: rings + spokes */
+  ctx.lineWidth=1; ctx.strokeStyle=grid;
+  const gmax=Math.ceil(maxR);
+  for(let g=1;g<=gmax;g++){
+    ctx.beginPath();
+    for(let a=0;a<=96;a++){
+      const t=a/96*2*Math.PI, q=project([g*Math.cos(t),g*Math.sin(t),0],scale);
+      a?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);
+    }
+    ctx.stroke();
+  }
+  for(let a=0;a<12;a++){
+    const t=a*30*D2R, q0=project([0,0,0],scale), q1=project([gmax*Math.cos(t),gmax*Math.sin(t),0],scale);
+    ctx.beginPath(); ctx.moveTo(q0[0],q0[1]); ctx.lineTo(q1[0],q1[1]); ctx.stroke();
+  }
+
+  /* global axes */
+  const axes=[["--ax-x",[1,0,0],"x"],["--ax-y",[0,1,0],"y"],["--ax-z",[0,0,1],"z"]];
+  ctx.lineWidth=1.6; ctx.font="11px ui-monospace,Menlo,monospace";
+  for(const [c,v,lb] of axes){
+    const col=css(c), L=gmax*1.06;
+    const q0=project([0,0,0],scale), q1=project([v[0]*L,v[1]*L,v[2]*L],scale);
+    ctx.strokeStyle=col; ctx.beginPath(); ctx.moveTo(q0[0],q0[1]); ctx.lineTo(q1[0],q1[1]); ctx.stroke();
+    ctx.fillStyle=col; ctx.fillText(lb,q1[0]+4,q1[1]-2);
+  }
+  drawScaleTicks(ctx, scale, W, H, gmax);
+
+  /* resultant */
+  if($("showRes").checked && chain.steps.length){
+    const col=css("--res-hue");
+    const q0=project([0,0,0],scale), q1=project(chain.res,scale);
+    ctx.setLineDash([6,5]); ctx.lineWidth=1.8; ctx.strokeStyle=col;
+    ctx.beginPath(); ctx.moveTo(q0[0],q0[1]); ctx.lineTo(q1[0],q1[1]); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  /* comparison chain overlay (drawn first, primary on top) */
+  if(chainB){
+    const cc=css("--cmp");
+    ctx.lineWidth=2.4; ctx.strokeStyle=cc; ctx.lineJoin="round"; ctx.globalAlpha=0.92;
+    ctx.beginPath();
+    chainB.nodes.forEach((n,i)=>{ const q=project(n.P,scale); i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]); });
+    ctx.stroke();
+    ctx.fillStyle=cc;
+    chainB.nodes.forEach((n,i)=>{ if(!i)return; const q=project(n.P,scale); ctx.beginPath(); ctx.arc(q[0],q[1],2.6,0,7); ctx.fill(); });
+    if($("showLabels").checked){
+      ctx.font="12px ui-monospace,Menlo,monospace";
+      chainB.nodes.forEach((n,i)=>{ if(!i)return; const q=project(n.P,scale); const lb=chainB.steps[i-1].ch; ctx.fillText(lb===" "?"␣":lb, q[0]+6, q[1]+11); });
+    }
+    ctx.globalAlpha=1;
+  }
+
+  /* chain segments */
+  ctx.lineWidth=2.4; ctx.strokeStyle=chainC; ctx.lineJoin="round";
+  ctx.beginPath();
+  chain.nodes.forEach((n,i)=>{
+    const q=project(n.P,scale);
+    i?ctx.lineTo(q[0],q[1]):ctx.moveTo(q[0],q[1]);
+  });
+  ctx.stroke();
+
+  /* node frames (triads) */
+  if($("showTriads").checked){
+    const tl=0.34;
+    ctx.lineWidth=1.4;
+    for(const n of chain.nodes){
+      for(let a=0;a<3;a++){
+        const col=css(["--ax-x","--ax-y","--ax-z"][a]);
+        const tip=[n.P[0]+n.R[0][a]*tl, n.P[1]+n.R[1][a]*tl, n.P[2]+n.R[2][a]*tl];
+        const q0=project(n.P,scale), q1=project(tip,scale);
+        ctx.strokeStyle=col; ctx.globalAlpha=0.85;
+        ctx.beginPath(); ctx.moveTo(q0[0],q0[1]); ctx.lineTo(q1[0],q1[1]); ctx.stroke();
+      }
+    }
+    ctx.globalAlpha=1;
+  }
+
+  /* nodes + labels */
+  ctx.font="12px ui-monospace,Menlo,monospace";
+  chain.nodes.forEach((n,i)=>{
+    const q=project(n.P,scale);
+    ctx.fillStyle=i? chainC : css("--res-hue");
+    ctx.beginPath(); ctx.arc(q[0],q[1],i?3.2:4,0,7); ctx.fill();
+    if($("showLabels").checked){
+      const lb=i? chain.steps[i-1].ch : "O";
+      ctx.fillStyle=css("--ink2")||chainC;
+      ctx.fillText(lb===" "?"␣":lb, q[0]+6, q[1]-6);
+    }
+  });
+}
+
+/* orbit / zoom */
+let drag=null;
+cv.addEventListener("pointerdown",e=>{ drag={x:e.clientX,y:e.clientY}; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove",e=>{
+  if(!drag) return;
+  state.yaw+=(e.clientX-drag.x)*0.008;
+  state.pitch=Math.max(-1.5,Math.min(1.5,state.pitch+(e.clientY-drag.y)*0.008));
+  drag={x:e.clientX,y:e.clientY}; draw();
+});
+cv.addEventListener("pointerup",()=>drag=null);
+cv.addEventListener("wheel",e=>{ e.preventDefault();
+  state.zoom=Math.max(0.2,Math.min(6,state.zoom*Math.exp(-e.deltaY*0.0012))); draw();
+},{passive:false});
+cv.addEventListener("dblclick",()=>{ state.yaw=-0.6; state.pitch=0.35; state.zoom=1; draw(); });
+
+/* dial reference: 90 slots */
+{
+  const dial=$("dial"); let html="";
+  CHARSET.forEach((ch,s)=>{
+    const disp=ch===" "?"␣":ch;
+    const esc=disp.replace("&","&amp;").replace("<","&lt;");
+    html+=`<div class="dialcell"><span class="c">${esc}</span><span class="a">${s*STEP_PHI}°</span></div>`;
+  });
+  dial.innerHTML=html;
+}
+
+function renderDecode(){
+  const dec=decode(chain.nodes.map(n=>n.P), state.frame);
+  const tb=$("decrows"); tb.innerHTML=""; let ok=0;
+  dec.forEach((d,i)=>{
+    const orig=chain.steps[i]?chain.steps[i].ch:"";
+    const match=d.ch===orig; if(match) ok++;
+    const disp=s=>s===" "?"␣":(""+s).replace("<","&lt;");
+    const decCell = (d.ch==="?"||d.ch==="∅")
+      ? `<span class="bad">${d.ch}</span>` : disp(d.ch);
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td>${d.k}</td><td class="char">${disp(orig)}</td>`+
+      `<td style="color:var(--r-hue)">${d.r<1e-9?"–":fmt(d.r,2)}</td>`+
+      `<td style="color:var(--theta-hue)">${d.alpha==null?"–":fmt(d.alpha,2)+"°"}</td>`+
+      `<td style="color:var(--phi-hue)">${d.phi==null?'<span class="bad">lost</span>':fmt(d.phi,2)+"°"}</td>`+
+      `<td class="char">${decCell}</td>`+
+      `<td>${match?'<span class="ok">✓</span>':'<span class="bad">✗</span>'}</td>`;
+    tb.appendChild(tr);
+  });
+  const n=dec.length, banner=$("decsum");
+  if(!n){ banner.textContent="—"; banner.className="decsum mono"; }
+  else if(ok===n){ banner.className="decsum mono good";
+    banner.textContent=`✅ Fully recovered ${ok}/${n} characters — the encoding is reversible; the original is restored from node geometry alone`; }
+  else{ banner.className="decsum mono warnbanner";
+    banner.textContent=`⚠ Recovered ${ok}/${n} characters — ${n-ok} unresolvable geometrically (α≥90° over-top / vertical; use a smaller step or a shorter sentence to avoid it)`; }
+}
+
+/* ---------- word-shape fingerprint gallery ---------- */
+const gv=$("gview"), gctx=gv.getContext("2d");
+let GW=0,GH=0;
+function gresize(){
+  const dpr=window.devicePixelRatio||1;
+  GW=gv.clientWidth; GH=gv.clientHeight;
+  gv.width=GW*dpr; gv.height=GH*dpr; gctx.setTransform(dpr,0,0,dpr,0,0);
+  drawGallery();
+}
+new ResizeObserver(gresize).observe(gv);
+
+function buildWordShape(word){
+  let P=[0,0,0]; const nodes=[[0,0,0]]; let j=0;
+  for(const ch of word){
+    const slot=SLOT.get(ch); if(slot===undefined) continue;
+    j++;
+    const d=sph(1, j*state.thetaVal, slot*STEP_PHI);
+    P=[P[0]+d[0],P[1]+d[1],P[2]+d[2]]; nodes.push(P.slice());
+  }
+  return nodes;
+}
+function extractWords(text){
+  return text.split(/\s+/).map(t=>[...t].filter(ch=>SLOT.has(ch)).join("")).filter(w=>w.length);
+}
+const gHue=i=>(i*137.508)%360;   // golden-angle color spread
+function drawGallery(){
+  if(!gctx) return;
+  gctx.clearRect(0,0,GW,GH);
+  const words=extractWords($("galleryText").value);
+  const counts=new Map(); for(const w of words) counts.set(w,(counts.get(w)||0)+1);
+  const uniq=[...counts.keys()];
+  if(!uniq.length){ $("glegend").innerHTML=""; return; }
+  const shapes=uniq.map(buildWordShape);
+  let maxR=1; for(const s of shapes) for(const p of s) maxR=Math.max(maxR,Math.hypot(...p));
+  const scale=Math.min(GW,GH)*0.40/maxR*state.zoom;
+
+  /* ground grid (rings + spokes) + x/y/z axes with integer ticks — scale reference */
+  const gmax=Math.ceil(maxR);
+  gctx.strokeStyle=css("--grid"); gctx.lineWidth=1;
+  for(let ring=1; ring<=gmax; ring++){
+    gctx.beginPath();
+    for(let a=0;a<=96;a++){ const t=a/96*2*Math.PI, q=project([ring*Math.cos(t),ring*Math.sin(t),0],scale,GW,GH); a?gctx.lineTo(q[0],q[1]):gctx.moveTo(q[0],q[1]); }
+    gctx.stroke();
+  }
+  for(let a=0;a<12;a++){
+    const t=a*30*D2R, q0=project([0,0,0],scale,GW,GH), q1=project([gmax*Math.cos(t),gmax*Math.sin(t),0],scale,GW,GH);
+    gctx.beginPath(); gctx.moveTo(q0[0],q0[1]); gctx.lineTo(q1[0],q1[1]); gctx.stroke();
+  }
+  gctx.lineWidth=1.5; gctx.font="11px ui-monospace,Menlo,monospace";
+  [["--ax-x",[1,0,0],"x"],["--ax-y",[0,1,0],"y"],["--ax-z",[0,0,1],"z"]].forEach(([c,u,lb])=>{
+    const col=css(c), L=gmax*1.06, q0=project([0,0,0],scale,GW,GH), q1=project([u[0]*L,u[1]*L,u[2]*L],scale,GW,GH);
+    gctx.strokeStyle=col; gctx.globalAlpha=.85;
+    gctx.beginPath(); gctx.moveTo(q0[0],q0[1]); gctx.lineTo(q1[0],q1[1]); gctx.stroke();
+    gctx.fillStyle=col; gctx.globalAlpha=1; gctx.fillText(lb, q1[0]+4, q1[1]-2);
+  });
+  drawScaleTicks(gctx, scale, GW, GH, gmax);
+
+  const o=project([0,0,0],scale,GW,GH);
+  gctx.fillStyle=css("--ink2"); gctx.globalAlpha=.55;
+  gctx.beginPath(); gctx.arc(o[0],o[1],3.5,0,7); gctx.fill(); gctx.globalAlpha=1;
+
+  gctx.lineJoin="round"; gctx.font="12px ui-monospace,Menlo,monospace";
+  uniq.forEach((w,i)=>{
+    const col=`hsl(${gHue(i)} 68% 55%)`, s=shapes[i];
+    gctx.lineWidth=1.8+Math.min(3.6,(counts.get(w)-1)*1.1);   // heavier line = more frequent word
+    gctx.strokeStyle=col; gctx.globalAlpha=.92;
+    gctx.beginPath();
+    s.forEach((p,k)=>{ const q=project(p,scale,GW,GH); k?gctx.lineTo(q[0],q[1]):gctx.moveTo(q[0],q[1]); });
+    gctx.stroke();
+    const tip=project(s[s.length-1],scale,GW,GH);
+    gctx.fillStyle=col; gctx.beginPath(); gctx.arc(tip[0],tip[1],3,0,7); gctx.fill();
+    gctx.fillText(counts.get(w)>1?`${w}×${counts.get(w)}`:w, tip[0]+5, tip[1]+4);
+    gctx.globalAlpha=1;
+  });
+
+  $("glegend").innerHTML=uniq.map((w,i)=>
+    `<span class="gchip"><i style="background:hsl(${gHue(i)} 68% 55%)"></i>${w.replace("&","&amp;").replace("<","&lt;")}${counts.get(w)>1?" ×"+counts.get(w):""}</span>`
+  ).join("");
+}
+let gdrag=null;
+gv.addEventListener("pointerdown",e=>{ gdrag={x:e.clientX,y:e.clientY}; gv.setPointerCapture(e.pointerId); });
+gv.addEventListener("pointermove",e=>{ if(!gdrag)return;
+  state.yaw+=(e.clientX-gdrag.x)*0.008;
+  state.pitch=Math.max(-1.5,Math.min(1.5,state.pitch+(e.clientY-gdrag.y)*0.008));
+  gdrag={x:e.clientX,y:e.clientY}; draw(); drawGallery(); });
+gv.addEventListener("pointerup",()=>gdrag=null);
+gv.addEventListener("wheel",e=>{ e.preventDefault();
+  state.zoom=Math.max(0.2,Math.min(6,state.zoom*Math.exp(-e.deltaY*0.0012))); draw(); drawGallery(); },{passive:false});
+gv.addEventListener("dblclick",()=>{ state.yaw=-0.6; state.pitch=0.35; state.zoom=1; draw(); drawGallery(); });
+$("galleryText").addEventListener("input",drawGallery);
+
+/* ---------- amplitude interference (exploratory / conjecture) ---------- */
+const ifcv=$("ifview"), ifctx=ifcv.getContext("2d");
+let IFW=0,IFH=0;
+function ifresize(){
+  const dpr=window.devicePixelRatio||1;
+  IFW=ifcv.clientWidth; IFH=ifcv.clientHeight;
+  ifcv.width=IFW*dpr; ifcv.height=IFH*dpr; ifctx.setTransform(dpr,0,0,dpr,0,0);
+  drawIF();
+}
+new ResizeObserver(ifresize).observe(ifcv);
+function firstValid(str){ for(const c of str) if(SLOT.has(c)) return c; return null; }
+function drawIF(){
+  if(!ifctx) return;
+  ifctx.clearRect(0,0,IFW,IFH);
+  const cx=IFW/2, cy=IFH/2, sc=Math.min(IFW,IFH)*0.30;
+  const grid=css("--grid");
+  // reference rings (unit and 2·unit = max resultant) + axes cross
+  ifctx.strokeStyle=grid; ifctx.lineWidth=1;
+  ifctx.beginPath(); ifctx.arc(cx,cy,sc,0,7); ifctx.stroke();
+  ifctx.globalAlpha=.5; ifctx.beginPath(); ifctx.arc(cx,cy,2*sc,0,7); ifctx.stroke(); ifctx.globalAlpha=1;
+  ifctx.beginPath(); ifctx.moveTo(cx-2*sc,cy); ifctx.lineTo(cx+2*sc,cy); ifctx.moveTo(cx,cy-2*sc); ifctx.lineTo(cx,cy+2*sc); ifctx.stroke();
+
+  const a=firstValid($("ifA").value), b=firstValid($("ifB").value);
+  const dash=()=>["ifpA","ifpB","ifd","ifmag","ifstate"].forEach(id=>$(id).textContent="–");
+  if(a===null||b===null){ dash(); $("ifbarfill").style.width="0%"; return; }
+  const phiA=SLOT.get(a)*STEP_PHI, phiB=SLOT.get(b)*STEP_PHI;
+  const A=[Math.cos(phiA*D2R),Math.sin(phiA*D2R)], B=[Math.cos(phiB*D2R),Math.sin(phiB*D2R)];
+  const R=[A[0]+B[0],A[1]+B[1]];
+  const T=v=>[cx+v[0]*sc, cy-v[1]*sc];
+  const Ta=T(A),Tb=T(B),Tr=T(R);
+  function arrow(v,col,w){
+    const t=T(v); ifctx.strokeStyle=col; ifctx.lineWidth=w;
+    ifctx.beginPath(); ifctx.moveTo(cx,cy); ifctx.lineTo(t[0],t[1]); ifctx.stroke();
+    let dx=t[0]-cx,dy=t[1]-cy; const L=Math.hypot(dx,dy)||1; dx/=L; dy/=L; const px=-dy,py=dx;
+    ifctx.fillStyle=col; ifctx.beginPath();
+    ifctx.moveTo(t[0],t[1]); ifctx.lineTo(t[0]-dx*11+px*5,t[1]-dy*11+py*5); ifctx.lineTo(t[0]-dx*11-px*5,t[1]-dy*11-py*5);
+    ifctx.closePath(); ifctx.fill(); return t;
+  }
+  // parallelogram (dashed)
+  ifctx.setLineDash([5,4]); ifctx.strokeStyle=css("--ink2"); ifctx.globalAlpha=.35; ifctx.lineWidth=1.2;
+  ifctx.beginPath(); ifctx.moveTo(Ta[0],Ta[1]); ifctx.lineTo(Tr[0],Tr[1]); ifctx.lineTo(Tb[0],Tb[1]); ifctx.stroke();
+  ifctx.setLineDash([]); ifctx.globalAlpha=1;
+  // resultant (bold) then A, B on top
+  arrow(R, css("--cmp"), 4);
+  arrow(A, css("--phi-hue"), 2.6);
+  arrow(B, css("--theta-hue"), 2.6);
+  ifctx.font="13px ui-monospace,Menlo,monospace";
+  ifctx.fillStyle=css("--phi-hue");   ifctx.fillText("A="+(a===" "?"␣":a), Ta[0]+7, Ta[1]+ (A[1]>=0?-6:14));
+  ifctx.fillStyle=css("--theta-hue"); ifctx.fillText("B="+(b===" "?"␣":b), Tb[0]+7, Tb[1]+ (B[1]>=0?-6:14));
+  ifctx.fillStyle=css("--cmp");       ifctx.fillText("A+B", Tr[0]+7, Tr[1]+ (R[1]>=0?-6:14));
+  ifctx.fillStyle=css("--ink2"); ifctx.beginPath(); ifctx.arc(cx,cy,3.5,0,7); ifctx.fill();
+
+  const raw=((phiA-phiB)%360+360)%360, dd=Math.min(raw,360-raw), mag=Math.hypot(...R);
+  $("ifpA").textContent=phiA+"°"; $("ifpB").textContent=phiB+"°"; $("ifd").textContent=dd+"°";
+  $("ifmag").textContent=mag.toFixed(3);
+  let st; if(dd<20) st="Fully constructive ▲"; else if(dd>160) st="Fully destructive ▼"; else if(dd<80) st="Partly constructive";
+    else if(dd>100) st="Partly destructive"; else st="Near-orthogonal";
+  const se=$("ifstate"); se.textContent=st;
+  se.style.color = dd<80?css("--ax-y") : dd>100?css("--res-hue") : css("--ink2");
+  $("ifbarfill").style.width=(mag/2*100).toFixed(1)+"%";
+}
+$("ifA").addEventListener("input",drawIF);
+$("ifB").addEventListener("input",drawIF);
+
+function update(){ encode(); renderTable(); renderDecode(); draw(); drawGallery(); drawIF(); }
+update();
+</script>
+
+</body></html>
