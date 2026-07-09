@@ -70,7 +70,7 @@ record of the work.
 Until an arXiv ID / DOI is available, please cite as:
 
 ```
-[Author]. A Spherical-Coordinate Chain Representation of Text:
+Guangjie Jin. A Spherical-Coordinate Chain Representation of Text:
 A Self-Describing, Reversible Encoding of Symbol Sequences in 3D. 2026.
 https://github.com/billweing/scs
 ```
