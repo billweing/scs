@@ -35,7 +35,8 @@ which shared prefixes trace coincident curves.
 
 | Path | Contents |
 |---|---|
-| [`paper/scs-preprint.md`](paper/scs-preprint.md) | Full preprint (9 sections, English) |
+| [`paper/scs-preprint.pdf`](paper/scs-preprint.pdf) | **Full preprint, compiled PDF (13 pp.)** |
+| [`paper/scs-preprint.md`](paper/scs-preprint.md) | Full preprint (9 sections, Markdown source) |
 | [`paper/arxiv/`](paper/arxiv/) | LaTeX source + figures for the arXiv version |
 | [`paper/figures/`](paper/figures/) | Figures 1–3 (SVG) |
 | [`calculator/index.html`](calculator/index.html) | The interactive encoder/decoder/gallery (self-contained HTML, same as [scs.bago.one](https://scs.bago.one)) |
